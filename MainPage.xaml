@@ -1,0 +1,60 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WinUIConnectivityIssue.MainPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:vms="clr-namespace:WinUIConnectivityIssue.ViewModels">
+    <ContentPage.BindingContext>
+        <vms:MainPageViewModel />
+    </ContentPage.BindingContext>
+
+    <ScrollView x:DataType="vms:MainPageViewModel">
+        <VerticalStackLayout
+            Padding="30,0"
+            Spacing="25"
+            VerticalOptions="Center">
+
+            <Label
+                FontSize="32"
+                HorizontalOptions="Center"
+                SemanticProperties.HeadingLevel="Level1"
+                Text="Network connectivity test" />
+
+            <Button
+                Command="{Binding MainThreadCommand}"
+                HorizontalOptions="Center"
+                Text="From Main Thread" />
+
+            <Label HorizontalOptions="Center">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span Text="Result: " TextColor="Black" />
+                        <Span
+                            FontAttributes="Bold"
+                            Text="{Binding MainThreadResult}"
+                            TextColor="Red" />
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+            <Button
+                Command="{Binding BackgroundThreadCommand}"
+                HorizontalOptions="Center"
+                Text="From Background Thread" />
+
+            <Label HorizontalOptions="Center">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span Text="Result: " TextColor="Black" />
+                        <Span
+                            FontAttributes="Bold"
+                            Text="{Binding BackgroundThreadResult}"
+                            TextColor="Red" />
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
