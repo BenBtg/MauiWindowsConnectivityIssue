@@ -8,91 +8,98 @@ using System.Threading.Tasks;
 using Microsoft.UI.Dispatching;
 using ConnectionProfile = Microsoft.Maui.Networking.ConnectionProfile;
 
-namespace WinUIConnectivityIssue;
 
-partial class ConnectivityImplementation : IConnectivity
-{
-    void StartListeners() =>
-        NetworkInformation.NetworkStatusChanged += NetworkStatusChanged;
-
-    void StopListeners() =>
-        NetworkInformation.NetworkStatusChanged -= NetworkStatusChanged;
-
-    void NetworkStatusChanged(object sender) =>
-        OnConnectivityChanged();
-
-    public NetworkAccess NetworkAccess =>
-        HasThreadAccess ?
-        GetNetworkAccess() :
-        DispatchAsync(GetNetworkAccess).GetAwaiter().GetResult();
-
-    bool HasThreadAccess
+namespace WinUIConnectivityIssue
+{ 
+    partial class ConnectivityImplementation : IConnectivity
     {
-        get
+        void StartListeners() =>
+            NetworkInformation.NetworkStatusChanged += NetworkStatusChanged;
+
+        void StopListeners() =>
+            NetworkInformation.NetworkStatusChanged -= NetworkStatusChanged;
+
+        void NetworkStatusChanged(object sender) =>
+            OnConnectivityChanged();
+
+        public NetworkAccess NetworkAccess =>
+            HasThreadAccess ?
+            GetNetworkAccess() :
+            DispatchAsync(GetNetworkAccess).GetAwaiter().GetResult();
+
+        bool HasThreadAccess
         {
-            DispatcherQueue dispatcherQueue = WindowStateManager.Default?.GetActiveWindow(false)?.DispatcherQueue;
+            get
+            {
+                DispatcherQueue dispatcherQueue = WindowStateManager.Default?.GetActiveWindow(false)?.DispatcherQueue;
 
-            if (dispatcherQueue is null)
-                return true;
 
-            return dispatcherQueue.HasThreadAccess;
+                if (dispatcherQueue is null)
+                    return true;
+
+
+                return dispatcherQueue.HasThreadAccess;
+            }
         }
-    }
 
-    Task<T> DispatchAsync<T>(Func<T> func)
-    {
-        var dispatcherQueue = WindowStateManager.Default.GetActiveWindow(false)?.DispatcherQueue;
+        Task<T> DispatchAsync<T>(Func<T> func)
+        {
+            var dispatcherQueue = WindowStateManager.Default.GetActiveWindow(false)?.DispatcherQueue;
+            var tcs = new TaskCompletionSource<T>();
 
-        var tcs = new TaskCompletionSource<T>();
+            _ = dispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    var result = func();
+                    tcs.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
 
-        _ = dispatcherQueue.TryEnqueue(() =>
+            return tcs.Task;
+        }
+
+        NetworkAccess GetNetworkAccess()
         {
             try
             {
-                var result = func();
-                tcs.SetResult(result);
+                var profile = NetworkInformation.GetInternetConnectionProfile();
+
+                if (profile == null)
+                    return NetworkAccess.Unknown;
+
+                var level = profile.GetNetworkConnectivityLevel();
+
+                switch (level)
+                {
+                    case NetworkConnectivityLevel.LocalAccess:
+                        return NetworkAccess.Local;
+                    case NetworkConnectivityLevel.InternetAccess:
+                        return NetworkAccess.Internet;
+                    case NetworkConnectivityLevel.ConstrainedInternetAccess:
+                        return NetworkAccess.ConstrainedInternet;
+                    default:
+                        return NetworkAccess.None;
+                }
             }
-            catch (Exception ex)
+            catch
             {
-                tcs.SetException(ex);
-            }
-        });
-
-        return tcs.Task;
-    }
-
-    NetworkAccess GetNetworkAccess()
-    {
-        try
-        {
-            var profile = NetworkInformation.GetInternetConnectionProfile();
-
-            if (profile == null)
                 return NetworkAccess.Unknown;
-
-            var level = profile.GetNetworkConnectivityLevel();
-
-            switch (level)
-            {
-                case NetworkConnectivityLevel.LocalAccess:
-                    return NetworkAccess.Local;
-                case NetworkConnectivityLevel.InternetAccess:
-                    return NetworkAccess.Internet;
-                case NetworkConnectivityLevel.ConstrainedInternetAccess:
-                    return NetworkAccess.ConstrainedInternet;
-                default:
-                    return NetworkAccess.None;
             }
         }
-        catch
-        {
-            return NetworkAccess.Unknown;
-        }
-    }
 
-    public IEnumerable<ConnectionProfile> ConnectionProfiles
-    {
-        get
+        public IEnumerable<ConnectionProfile> ConnectionProfiles =>
+            HasThreadAccess ?
+            GetConnectionProfiles() :
+            DispatchAsync(GetConnectionProfiles).GetAwaiter().GetResult();
+
+        IEnumerable<Microsoft.Maui.Networking.ConnectionProfile> IConnectivity.ConnectionProfiles => throw new NotImplementedException();
+
+        IEnumerable<ConnectionProfile> GetConnectionProfiles()
         {
             var networkInterfaceList = NetworkInformation.GetConnectionProfiles();
             foreach (var interfaceInfo in networkInterfaceList.Where(nii => nii.GetNetworkConnectivityLevel() != NetworkConnectivityLevel.None))

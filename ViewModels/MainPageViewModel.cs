@@ -9,11 +9,17 @@ namespace WinUIConnectivityIssue.ViewModels
         public MainPageViewModel()
         {
             MainThreadCommand = new Command(() => MainThreadResult = $"{Connectivity.Current.NetworkAccess}");
-            BackgroundThreadCommand = new Command(() =>
+            BackgroundThreadCommand = new Command(() => {
+                string state = string.Empty;
+
                 Task.Run(() =>
                 {
-                    BackgroundThreadResult = $"{Connectivity.Current.NetworkAccess}";
-                })
+                    state = Connectivity.Current.NetworkAccess.ToString();   
+                }).ContinueWith((task) => 
+                {
+                    BackgroundThreadResult = $"{state}";
+                });
+                }
             );
         }
 
